@@ -16,6 +16,7 @@
     canvas: null, ctx: null, screen: 'boot',
     stats: { merit: 0, kills: 0, level: 1 },
     _lastT: 0, _saveT: 0, _ambT: 0, _drainLock: false,
+    _shake: 0,
     _scale: 1, _offX: 0, _offY: 0
   };
 
@@ -41,10 +42,15 @@
       return true;
     };
 
-    // 鬼物啃罩
-    GM.events.onDrain = function (dmg, ghost) {
+    // 鬼物啃罩：扣功德 + 碰撞点裂痕 + 屏幕晃动冲击
+    GM.events.onDrain = function (dmg, ghost, surfaceY) {
       if (C.screen !== 'play') return;
       SH.drain(dmg);
+      SH.addCrack(ghost.x, surfaceY);
+      C._shake = Math.min(14, C._shake + CM.SHIELD.shakePerCrack);
+      // 裂痕白光一闪 + 撞击声
+      CM.Fx.poof(ghost.x, surfaceY, 'rgba(255,255,255,0.9)');
+      if (Math.random() < 0.4) CM.Audio.petDown();
       if (G.getData().merit <= 0 && !SH.broken && !C._drainLock) {
         C._drainLock = true;
         setTimeout(function () { C._drainLock = false; C.shieldBreak(); }, 60);
@@ -101,12 +107,12 @@
     C.canvas.style.height = (vh * scale) + 'px';
     // 画布已由 CSS translate(-50%,-50%) 居中，坐标系内只需缩放，不可再加偏移（否则宽屏时内容被推偏半屏）
     C.ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    // 顶栏按钮跟随画布：放在功德条下方（画布逻辑 y≈96）
+    // 顶栏按钮跟随画布：放在功德条下方
     const btns = document.getElementById('topBtns');
     if (btns) {
       const r = C.canvas.getBoundingClientRect();
       btns.style.left = (r.left + r.width / 2) + 'px';
-      btns.style.top = (r.top + r.height * (96 / vh)) + 'px';
+      btns.style.top = (r.top + r.height * (72 / vh)) + 'px';
     }
   };
 
@@ -146,7 +152,7 @@
     if (nextId) {
       G.killPet(nextId);
       CM.Audio.petDown();
-      Fx.poof(CM.SHIELD.cx, CM.SHIELD.cy, '#b39dff');
+      Fx.poof(CM.SHIELD.cx, CM.SHIELD.baseY - 80, '#b39dff');
       // 罩子重亮：恢复功德 = 容量 25%
       G.getData().merit = Math.max(1, Math.round(G.meritCap() * CM.SHIELD.restoreOnPet));
       SH.broken = false;
@@ -187,6 +193,9 @@
   C.update = function (dt) {
     Fx.update(dt);
     T.update(dt);
+    SH.update(dt);
+    // 晃动衰减
+    C._shake = Math.max(0, C._shake - dt * 16);
     if (C.screen === 'play') {
       GM.update(dt);
       PS.update(dt, G.getData().muyuLevel);
@@ -204,14 +213,24 @@
     const ctx = C.ctx;
     drawBackground(ctx);
     if (C.screen === 'gender' || C.screen === 'boot') { drawTitleScreen(ctx); return; }
+
+    // 屏幕晃动：裂痕越多、罩越破，晃动越大
+    const ratio = SH.ratio();
+    const amp = C._shake + (1 - ratio) * CM.SHIELD.idleShake;
+    ctx.save();
+    if (amp > 0.25) {
+      ctx.translate((Math.random() - 0.5) * amp, (Math.random() - 0.5) * amp);
+    }
+
     drawAltar(ctx);
-    SH.draw(ctx);
-    drawPlayer(ctx);
+    drawPlayer(ctx);                   // 背影人物（罩内最后方）
     PS.draw(ctx, G.getData().muyuLevel);
-    GM.draw(ctx);
+    SH.draw(ctx);                      // 半圆金钟罩笼罩
+    GM.draw(ctx);                      // 鬼物贴罩面
     drawMuyu(ctx);
     Fx.draw(ctx);
     HUD.drawBar(ctx);
+    ctx.restore();
   };
 
   // ===== 背景：8 张赛博地狱（L1~8）+ 赛博灵山（L9+）=====
@@ -348,11 +367,12 @@
   function drawAltar(ctx) {
     // 罩下地面光斑（模拟金光映照的地面，无实体条块）
     ctx.save();
-    const g = ctx.createRadialGradient(CM.SHIELD.cx, CM.PET_SPOTS.cat1.y + 40, 10, CM.SHIELD.cx, CM.PET_SPOTS.cat1.y + 40, 130);
-    g.addColorStop(0, 'rgba(255,215,94,0.10)');
+    const gy = CM.SHIELD.baseY + 18;
+    const g = ctx.createRadialGradient(CM.SHIELD.cx, gy, 10, CM.SHIELD.cx, gy, 150);
+    g.addColorStop(0, 'rgba(255,215,94,0.12)');
     g.addColorStop(1, 'rgba(255,215,94,0)');
     ctx.fillStyle = g;
-    ctx.beginPath(); ctx.ellipse(CM.SHIELD.cx, CM.PET_SPOTS.cat1.y + 40, 130, 26, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(CM.SHIELD.cx, gy, 150, 30, 0, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
   }
 
@@ -366,29 +386,68 @@
     ctx.closePath();
   }
 
-  // ===== 玩家（金光下） =====
+  // ===== 玩家背影（固定站立，放大，罩内最后方） =====
   function drawPlayer(ctx) {
     const g = G.getData().gender || 'f';
-    const x = CM.PET_SPOTS.player.x, y = CM.PET_SPOTS.player.y;
+    const x = CM.PET_SPOTS.player.x;
+    const baseY = CM.SHIELD.baseY;     // 脚底贴地
     ctx.save();
-    ctx.translate(x, y);
-    // 脚/腿
-    ctx.fillStyle = '#1c2333';
-    ctx.fillRect(-12, 8, 10, 18);
-    ctx.fillRect(4, 8, 10, 18);
-    // 躯干
-    ctx.fillStyle = g === 'f' ? '#ff8fb8' : '#00d8d0';
-    ctx.fillRect(-14, -18, 28, 28);
-    // 头
-    ctx.beginPath(); ctx.arc(0, -30, 12, 0, Math.PI * 2);
-    ctx.fillStyle = '#f0d8b8'; ctx.fill();
-    // 头发
-    ctx.fillStyle = g === 'f' ? '#2b1a3a' : '#16233a';
-    ctx.beginPath(); ctx.arc(0, -33, 12.5, Math.PI, 0); ctx.fill();
+    ctx.translate(x, baseY);
+
+    // 腿（深色裤装）
+    ctx.fillStyle = '#161d31';
+    ctx.fillRect(-15, -34, 13, 34);
+    ctx.fillRect(3, -34, 13, 34);
+    // 上身外套
+    ctx.fillStyle = g === 'f' ? '#37245c' : '#123a4a';
+    roundRect(ctx, -26, -80, 52, 50, 10);
+    ctx.fill();
+    // 外套背脊赛博纹
+    ctx.strokeStyle = 'rgba(0,240,255,0.45)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-8, -78); ctx.lineTo(-2, -54); ctx.lineTo(-8, -34);
+    ctx.moveTo(8, -78); ctx.lineTo(2, -54); ctx.lineTo(8, -34);
+    ctx.stroke();
+    // 后颈
+    ctx.fillStyle = '#eac9a6';
+    ctx.fillRect(-7, -88, 14, 10);
+    // 后脑勺
+    ctx.beginPath(); ctx.arc(0, -102, 17, 0, Math.PI * 2);
+    ctx.fillStyle = '#eac9a6'; ctx.fill();
+    // 头发（背影）
+    ctx.fillStyle = g === 'f' ? '#251640' : '#0e1d33';
+    ctx.beginPath(); ctx.arc(0, -104, 18, 0, Math.PI * 2); ctx.fill();
     if (g === 'f') {
-      ctx.fillRect(-12.5, -34, 6, 22);
-      ctx.fillRect(7, -34, 6, 22);   // 长发
+      // 长发披肩及腰
+      ctx.beginPath();
+      ctx.moveTo(-16, -108);
+      ctx.quadraticCurveTo(-30, -70, -20, -46);
+      ctx.quadraticCurveTo(-12, -58, -6, -104);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(16, -108);
+      ctx.quadraticCurveTo(30, -70, 20, -46);
+      ctx.quadraticCurveTo(12, -58, 6, -104);
+      ctx.closePath(); ctx.fill();
+    } else {
+      // 短发后发际
+      ctx.beginPath();
+      ctx.arc(0, -102, 17, 0.15 * Math.PI, 0.85 * Math.PI);
+      ctx.arc(0, -100, 15, 0.85 * Math.PI, 0.15 * Math.PI, true);
+      ctx.closePath(); ctx.fill();
     }
+    // 背光轮廓（金光 rim light）
+    ctx.strokeStyle = 'rgba(255,215,94,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, -104, 19, Math.PI * 0.9, Math.PI * 1.7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-26, -78); ctx.lineTo(-26, -32); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(26, -78); ctx.lineTo(26, -32); ctx.stroke();
+    // 肩部一点霓虹
+    ctx.strokeStyle = 'rgba(255,43,214,0.55)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-26, -62); ctx.lineTo(-13, -62); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(26, -62); ctx.lineTo(13, -62); ctx.stroke();
     ctx.restore();
   }
 

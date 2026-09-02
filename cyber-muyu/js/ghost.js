@@ -27,19 +27,24 @@
     const cfg = def.petGhost != null ? CM.GHOST.petGhost[def.petGhost] : CM.GHOST.tiers[def.tier - 1];
     const scale = (GM.cycleScale || 1);
     // 统一从屏幕顶部外缘出现，向下侵袭，保证进入视野后才可被攻击
-    const cx = 50 + Math.random() * (CM.VIEW.W - 100);
-    const cy = -60 - Math.random() * 50;
+    const cx = 60 + Math.random() * (CM.VIEW.W - 120);
+    const cy = -80 - Math.random() * 60;
+    // 精英鬼物：体型更大、浑身血气
+    const isElite = Math.random() < CM.GHOST.eliteChance;
+    const eliteScale = isElite ? CM.GHOST.eliteSize : 1;
     GM._list.push({
       id: ++GM._id,
       tier: def.tier || 0,
       petGhost: def.petGhost != null ? def.petGhost : null,
       cyber: !!def.cyber,
-      hp: Math.round(cfg.hp * scale), maxHp: Math.round(cfg.hp * scale),
+      elite: isElite,
+      hp: Math.round(cfg.hp * scale * (isElite ? CM.GHOST.eliteHp : 1)),
+      maxHp: Math.round(cfg.hp * scale * (isElite ? CM.GHOST.eliteHp : 1)),
       speed: cfg.speed * (0.85 + Math.random() * 0.3),
-      atkDps: cfg.atkDps,
-      size: cfg.size,
-      glow: cfg.glow,
-      name: cfg.name,
+      atkDps: cfg.atkDps * (isElite ? CM.GHOST.eliteAtk : 1),
+      size: cfg.size * eliteScale,
+      glow: isElite ? '#ff3b3b' : cfg.glow,
+      name: (isElite ? '精英·' : '') + cfg.name,
       x: cx, y: cy,
       state: 'approach',
       atkT: 0,
@@ -65,26 +70,25 @@
       GM._spawnT = GM.spawnInterval();
     }
 
-    // 移动 / 啃罩
+    // 移动 / 啃罩：鬼物从上方落下，沿半圆钟罩弧面贴附啃咬
     for (let i = GM._list.length - 1; i >= 0; i--) {
       const h = GM._list[i];
       h.wob += h.wobSpeed * dt;
-      const dx = CM.SHIELD.cx - h.x;
-      const dy = CM.SHIELD.cy - h.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist > CM.SHIELD.ghostAttackRadius) {
+      const surfaceY = CM.ShieldSystem.surfaceY(h.x);
+      if (h.y < surfaceY - 14) {
+        // 未到罩面：向下侵袭（轻微左右游移）
         h.state = 'approach';
-        const wob = Math.sin(h.wob) * 6;
-        const n = dist || 1;
-        h.x += (dx / n) * h.speed * dt + wob * dt;
-        h.y += (dy / n) * h.speed * dt - wob * 0.4 * dt;
+        h.y += h.speed * dt * 0.9;
+        h.x += Math.sin(h.wob) * 9 * dt;
       } else {
+        // 贴在罩面上啃
         h.state = 'attack';
+        h.y = surfaceY - 12 + Math.sin(h.wob) * 3;
         if (GM.events.onDrain) {
           h.atkT -= dt;
           if (h.atkT <= 0) {
             h.atkT = CM.GHOST.attackTick;
-            GM.events.onDrain(h.atkDps * CM.GHOST.attackTick, h);
+            GM.events.onDrain(h.atkDps * CM.GHOST.attackTick, h, surfaceY);
           }
         }
       }
@@ -108,7 +112,9 @@
     const i = GM._list.indexOf(h);
     if (i >= 0) GM._list.splice(i, 1);
 
-    // 图鉴点亮（含赛博化形态）
+    const rewardMul = h.elite ? CM.GHOST.eliteReward : 1;
+
+    // 图鉴点亮（含赛博化形态；精英同形态共用图鉴）
     if (h.petGhost != null) {
       G.collect(null, null, h.petGhost === 0 ? 'cat' : 'parrot');
     } else {
@@ -116,15 +122,17 @@
     }
 
     if (src === 'pulse') {
-      Fx.firework(x || h.x, y || h.y, 0.9);
-      Fx.meritText(h.x, h.y - 14, '+' + CM.MERIT.killMuyu, CM.COLORS.gold, 22);
-      G.getData().merit = Math.min(G.meritCap(), G.getData().merit + CM.MERIT.killMuyu);
+      const gain = CM.MERIT.killMuyu * rewardMul;
+      Fx.firework(x || h.x, y || h.y, h.elite ? 1.3 : 0.9);
+      Fx.meritText(h.x, h.y - 14, '+' + gain, CM.COLORS.gold, h.elite ? 30 : 22);
+      G.getData().merit = Math.min(G.meritCap(), G.getData().merit + gain);
       CM.Audio.kill(true);
     } else {
       // 宠物/友方击杀 => 灵魂净化归顺
       Fx.poof(h.x, h.y, h.glow);
       CM.Audio.kill(false);
-      G.getData().merit = Math.min(G.meritCap(), G.getData().merit + CM.MERIT.killPet);
+      const gain = CM.MERIT.killPet * rewardMul;
+      G.getData().merit = Math.min(G.meritCap(), G.getData().merit + gain);
     }
     // 统计 / 灵魂归顺回调（src=pulse 时不产生友方魂）
     if (GM.events.onKill) GM.events.onKill(h, src, x, y);
@@ -224,22 +232,38 @@
       const wob = Math.sin(h.wob) * 2.4;
       const x = h.x + wob;
       const deep = h.tier >= 7;              // 高层鬼物更突出
-      const w = s * (1.7 + (deep ? 0.35 : 0));
+      // 立绘放大：看清细节；精英再乘体型倍率
+      const w = s * (2.3 + (deep ? 0.6 : 0)) * (h.elite ? 1.15 : 1);
       const spr = Sp.variant(GM._ghostSpriteKey(h), GM._ghostFilter(h));
       if (!spr) continue;
       const ratio = spr.height / spr.width;
       const hh = w * ratio;
 
-      // 光晕
+      // 光晕（精英为血色）
       ctx.save();
       ctx.translate(x, h.y + hh * 0.06);
-      ctx.globalAlpha = 0.32 + (h.cyber ? 0.15 : 0);
-      ctx.shadowColor = h.cyber ? CM.GHOST.cyberTint : h.glow;
-      ctx.shadowBlur = 22;
-      ctx.fillStyle = h.glow;
+      const glowC = h.elite ? '#ff2b2b' : (h.cyber ? CM.GHOST.cyberTint : h.glow);
+      ctx.globalAlpha = h.elite ? 0.5 : 0.32 + (h.cyber ? 0.15 : 0);
+      ctx.shadowColor = glowC;
+      ctx.shadowBlur = h.elite ? 30 : 22;
+      ctx.fillStyle = glowC;
       ctx.beginPath(); ctx.arc(0, 0, w * 0.55, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
+
+      // 精英：血色环绕（旋转血雾粒子环）
+      if (h.elite) {
+        ctx.globalAlpha = 0.65;
+        const t = Date.now() / 420;
+        for (let j = 0; j < 9; j++) {
+          const a = t + (j / 9) * Math.PI * 2;
+          const rx = Math.cos(a) * w * 0.62;
+          const ry = Math.sin(a) * w * 0.30 - hh * 0.1;
+          ctx.fillStyle = j % 2 ? '#ff3b3b' : '#a01010';
+          ctx.beginPath(); ctx.arc(rx, ry, 3.4 + Math.sin(t * 2 + j) * 1.2, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
 
       // 立绘本体
       ctx.drawImage(spr, -w / 2, -hh * 0.5, w, hh);
@@ -273,13 +297,23 @@
         ctx.beginPath(); ctx.arc(0, 0, w * 0.6, 0, Math.PI * 2); ctx.fill();
       }
 
-      // 血条
+      // 血条（精英为红色边框+冠字）
       if (h.hp < h.maxHp) {
         ctx.globalAlpha = 0.88;
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(-w * 0.45, -hh * 0.56, w * 0.9, 5);
-        ctx.fillStyle = h.cyber ? CYBER_TINT : h.glow;
+        ctx.fillStyle = h.elite ? '#ff3b3b' : (h.cyber ? CYBER_TINT : h.glow);
         ctx.fillRect(-w * 0.45, -hh * 0.56, w * 0.9 * Math.max(0, h.hp / h.maxHp), 5);
+        if (h.elite) {
+          ctx.globalAlpha = 0.95;
+          ctx.font = 'bold 12px "PingFang SC","Microsoft YaHei",sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#ff3b3b';
+          ctx.shadowColor = '#ff3b3b';
+          ctx.shadowBlur = 6;
+          ctx.fillText('精英', 0, -hh * 0.56 - 6);
+          ctx.shadowBlur = 0;
+        }
       }
       ctx.restore();
       ctx.globalAlpha = 1;

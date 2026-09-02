@@ -27,25 +27,34 @@
 
   // --- 木鱼（底部中央主交互位）---
   CM.MUYU = {
-    x: 216, y: 686,            // 中心点
+    x: 216, y: 694,            // 中心点
     w: 150, h: 96,             // 本体宽高（立绘按比例缩放）
     tapRadius: 88,             // 判定半径（点击任意处亦可敲击）
     sink: 7,                   // 敲击下沉像素
-    pulseOriginY: 636,         // 金光脉冲起点（木鱼上方）
-    pulseRadius: 350,          // 单敲金光脉冲作用半径
+    pulseOriginY: 575,         // 金光脉冲起点（钟罩内上方）
+    pulseRadius: 330,          // 单敲金光脉冲作用半径
     pulseDamage: 50
   };
 
-  // --- 金光罩（贴近木鱼，鬼物从上空攻击罩顶）---
+  // --- 金钟罩（半圆，罩住人物与宠物；鬼物从上空啃罩）---
   CM.SHIELD = {
-    cx: 216, cy: 424,         // 罩心
-    r: 146,                   // 罩半径
-    ghostAttackRadius: 158,   // 鬼物开始啃罩的距离（稍大于罩半径）
-    restoreOnPet: 0.25        // 宠物替死后恢复功德 = 容量 x 此比例
+    cx: 216,                   // 罩心 x
+    r: 185,                    // 半圆半径（也决定宽度）
+    baseY: 668,                // 地面基线（钟罩底边贴地）
+    topY: 483,                 // 弧顶 y = baseY - r
+    glowMax: 0.42,             // 功德满时金光最大不透明度（不遮人物）
+    restoreOnPet: 0.25,        // 宠物替死后恢复功德 = 容量 x 此比例
+    crackMax: 24,              // 裂痕数量上限
+    shakePerCrack: 2.2,        // 每次碰撞产生的晃动冲击
+    idleShake: 3.5             // 罩受损时的常驻晃动幅度
   };
 
-  // --- 宠物位置 ---
-  CM.PET_SPOTS = { cat1: { x: 156, y: 462 }, cat2: { x: 276, y: 462 }, player: { x: 216, y: 436 } };
+  // --- 角色站位（背影人物最后，猫/鹦鹉在其前方）---
+  CM.PET_SPOTS = {
+    player: { x: 216 },        // 背影人物（脚底贴钟罩底边）
+    cat1:   { x: 148, y: 634 },  // 前方左猫
+    cat2:   { x: 284, y: 634 }   // 前方右猫
+  };
 
   // --- 功德成长 ---
   CM.MERIT = {
@@ -78,6 +87,11 @@
     spawnIntervalPerLevel: 0.18,
     attackTick: 0.5,          // 啃罩间隔（秒）
     cyberTint: '#4dffd8',     // 赛博进化电路色
+    eliteChance: 0.15,        // 精英鬼物刷新概率
+    eliteSize: 1.4,           // 精英体型倍率（比普通更大）
+    eliteHp: 3,               // 精英血量倍率
+    eliteAtk: 1.8,            // 精英攻击倍率
+    eliteReward: 3,           // 精英击杀功德倍率
     petGhost: [               // 宠物亡灵鬼（首次全灭后解锁入池）
       { name: '猫鬼', hp: 900, speed: 72, atkDps: 40, size: 34, glow: '#b39dff' },
       { name: '鹦鹉鬼', hp: 600, speed: 95, atkDps: 30, size: 26, glow: '#b39dff' }
@@ -86,11 +100,11 @@
 
   // --- 宠物 ---
   CM.PETS = {
-    cats: [{ id: 'cat1', x: 156, label: '阿金' }, { id: 'cat2', x: 276, label: '阿银' }],
-    catDps: 36, catRange: 255, catAtkCD: 0.8,
+    cats: [{ id: 'cat1', x: 148, label: '阿金' }, { id: 'cat2', x: 284, label: '阿银' }],
+    catDps: 10, catRange: 215, catAtkCD: 0.8,
     parrots: [ { id: 'p1', level: 2 }, { id: 'p2', level: 3 }, { id: 'p3', level: 4 }, { id: 'p4', level: 5 } ],
-    parrotDps: 20, parrotRange: 290, parrotAtkCD: 1.0,
-    soulDps: 8, soulRange: 320, soulAtkCD: 1.2
+    parrotDps: 11, parrotRange: 215, parrotAtkCD: 1.0,
+    soulDps: 6, soulRange: 215, soulAtkCD: 1.2
   };
 
   // --- 皮肤与签到 ---
