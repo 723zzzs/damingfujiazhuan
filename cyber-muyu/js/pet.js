@@ -1,0 +1,183 @@
+/* ============================================================
+ * PetSystem · 猫 / 鹦鹉 / 友方鬼灵（灵魂归顺）
+ * ============================================================ */
+(function (global) {
+  'use strict';
+  const CM = global.CM;
+  const G = CM.GameState;
+  const GM = CM.GhostManager;
+
+  const PS = { _souls: [], _time: 0, _cd: {} };
+
+  PS.addSoul = function (x, y) {
+    if (PS._souls.length >= 14) return;
+    PS._souls.push({
+      x: x, y: y,
+      tx: CM.SHIELD.cx + (Math.random() - 0.5) * 120,
+      ty: CM.SHIELD.cy + (Math.random() - 0.5) * 90,
+      phase: Math.random() * Math.PI * 2,
+      atkT: 1.2, ttl: 60
+    });
+  };
+  PS.clearSouls = function () { PS._souls = []; };   // 升级消散
+
+  // 宠物攻击（猫+鹦鹉）：冷却跨帧持久
+  function petAttack(id, x, y, dps, cd, range, atkCb) {
+    let c = (PS._cd[id] || 0);
+    if (c > 0) { PS._cd[id] = c - PS._dt; return; }
+    const target = GM.nearest(x, y, range);
+    if (!target) { PS._cd[id] = 0.25; return; }
+    PS._cd[id] = cd;
+    GM.hurt(target, dps * cd, 'pet', target.x, target.y);
+    if (atkCb) atkCb(target);
+  }
+
+  PS.update = function (dt, muyuLevel) {
+    PS._time += dt;
+    PS._dt = dt;
+
+    // 猫：平台两侧，存活即可自动索敌攻击
+    for (let i = 0; i < CM.PETS.cats.length; i++) {
+      const pc = CM.PETS.cats[i];
+      if (!G.petAlive(pc.id)) continue;
+      petAttack(pc.id, pc.x, 396,
+        CM.PETS.catDps * (0.85 + muyuLevel * 0.10),
+        CM.PETS.catAtkCD, CM.PETS.catRange,
+        function (t) {
+          CM.Fx.bolt(pc.x, 396, t.x, t.y - 24, 0.18, CM.COLORS.gold, 5);
+        });
+    }
+
+    // 鹦鹉：随木鱼等级解锁，绕玩家环形飞行
+    for (let i = 0; i < CM.PETS.parrots.length; i++) {
+      const pp = CM.PETS.parrots[i];
+      const id = pp.id;
+      const on = G.petAlive(id) && muyuLevel >= pp.level;
+      if (!on) continue;
+      const ang = PS._time * 1.4 + i * Math.PI / 2;
+      const px = CM.SHIELD.cx + Math.cos(ang) * 58;
+      const py = CM.SHIELD.cy + Math.sin(ang * 0.8) * 40 - 10;
+      petAttack(id, px, py,
+        CM.PETS.parrotDps * (0.9 + muyuLevel * 0.08),
+        CM.PETS.parrotAtkCD, CM.PETS.parrotRange,
+        function (t) {
+          CM.Fx.bolt(px, py, t.x, t.y - 20, 0.16, CM.COLORS.cyan, 4);
+          CM.Audio.spark();
+        });
+    }
+
+    // 友方鬼灵：飘向罩内并攻击鬼物
+    for (let i = PS._souls.length - 1; i >= 0; i--) {
+      const s = PS._souls[i];
+      s.ttl -= dt;
+      s.atkT -= dt;
+      if (s.ttl <= 0) { PS._souls.splice(i, 1); continue; }
+      // 归位漂移
+      s.x += (s.tx - s.x) * 1.6 * dt;
+      s.y += (s.ty - s.y) * 1.6 * dt;
+      s.phase += dt * 2.4;
+      s.y += Math.sin(s.phase) * 0.5;
+      if (s.atkT <= 0) {
+        s.atkT = CM.PETS.soulAtkCD;
+        const t2 = GM.nearest(s.x, s.y, CM.PETS.soulRange);
+        if (t2) {
+          GM.hurt(t2, CM.PETS.soulDps * CM.PETS.soulAtkCD * (0.9 + muyuLevel * 0.06), 'soul', t2.x, t2.y);
+          CM.Fx.bolt(s.x, s.y, t2.x, t2.y - 18, 0.12, '#8dffe0', 3);
+        }
+      }
+    }
+  };
+
+  // 谁在罩内：返回存活宠物坐标集合（供替死逻辑使用）
+  PS.living = function () {
+    const d = G.getData();
+    return {
+      parrots: CM.PETS.parrots.filter(function (p) { return d.petAlive[p.id]; }),
+      cats: CM.PETS.cats.filter(function (c) { return d.petAlive[c.id]; })
+    };
+  };
+
+  PS.draw = function (ctx, muyuLevel) {
+    const cyber = Math.min(1, (muyuLevel - 1) / 8);   // 赛博改造度 0~1
+
+    // 猫
+    for (let i = 0; i < CM.PETS.cats.length; i++) {
+      const pc = CM.PETS.cats[i];
+      if (!G.petAlive(pc.id)) continue;
+      const x = pc.x, y = 396, flip = i === 0 ? -1 : 1;
+      ctx.save(); ctx.translate(x, y);
+      // 身体
+      ctx.fillStyle = i === 0 ? '#f5e6c8' : '#cfd8e3';
+      ctx.beginPath(); ctx.ellipse(0, 6, 20, 14, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(flip * 9, -6, 11, 0, Math.PI * 2); ctx.fill(); // 头
+      // 耳
+      ctx.beginPath(); ctx.moveTo(flip * 1, -16); ctx.lineTo(flip * 5, -26); ctx.lineTo(flip * 10, -14); ctx.fill();
+      // 赛博回路
+      if (cyber > 0.1) {
+        ctx.strokeStyle = CM.COLORS.cyan; ctx.globalAlpha = 0.35 + cyber * 0.65;
+        ctx.lineWidth = 1.4;
+        ctx.shadowColor = CM.COLORS.cyan; ctx.shadowBlur = 4 * cyber;
+        ctx.beginPath();
+        ctx.moveTo(-14, 2); ctx.lineTo(-4, 2); ctx.lineTo(0, -4);
+        ctx.moveTo(10, 2); ctx.lineTo(14, 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      ctx.globalAlpha = 1;
+      // 眼
+      ctx.fillStyle = '#2e2410';
+      ctx.beginPath(); ctx.arc(flip * 12, -8, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = cyber > 0.5 ? CM.COLORS.cyan : '#2e2410';
+      ctx.beginPath(); ctx.arc(flip * 6, -8, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    // 鹦鹉（绕飞）
+    for (let i = 0; i < CM.PETS.parrots.length; i++) {
+      const pp = CM.PETS.parrots[i];
+      if (!G.petAlive(pp.id) || muyuLevel < pp.level) continue;
+      const ang = PS._time * 1.4 + i * Math.PI / 2;
+      const x = CM.SHIELD.cx + Math.cos(ang) * 58;
+      const y = CM.SHIELD.cy + Math.sin(ang * 0.8) * 40 - 10;
+      const flap = Math.sin(PS._time * 12 + i * 2) * 5;
+      ctx.save(); ctx.translate(x, y);
+      ctx.scale(Math.cos(ang) > 0 ? 1 : -1, 1);
+      // 身体
+      ctx.fillStyle = i % 2 ? '#ff6a9a' : '#ff2bd6';
+      ctx.beginPath(); ctx.ellipse(0, 2, 9, 12, 0, 0, Math.PI * 2); ctx.fill();
+      // 翅膀
+      ctx.fillStyle = '#8dffe0';
+      ctx.beginPath(); ctx.moveTo(-2, 0); ctx.quadraticCurveTo(-14, -8 - flap, -10, 4); ctx.quadraticCurveTo(-8, -2, -2, 0); ctx.fill();
+      // 头与喙
+      ctx.fillStyle = i % 2 ? '#ff2bd6' : '#ff6a9a';
+      ctx.beginPath(); ctx.arc(0, -11, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = CM.COLORS.gold;
+      ctx.beginPath(); ctx.moveTo(4, -13); ctx.lineTo(12, -11); ctx.lineTo(4, -9); ctx.fill();
+      // 眼 + 赛博纹
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(3, -13, 2.4, 0, Math.PI * 2); ctx.fill();
+      if (cyber > 0.15) {
+        ctx.strokeStyle = CM.COLORS.cyan; ctx.globalAlpha = 0.4 + cyber * 0.6; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(-8, 6); ctx.lineTo(-3, 2); ctx.moveTo(-6, 8); ctx.lineTo(-1, 4); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      ctx.restore();
+    }
+
+    // 友方鬼灵（发光小魂体）
+    for (let i = 0; i < PS._souls.length; i++) {
+      const s = PS._souls[i];
+      const pulse = 0.6 + Math.sin(s.phase) * 0.3;
+      ctx.save();
+      ctx.translate(s.x, s.y + Math.sin(s.phase) * 3);
+      ctx.shadowColor = CM.COLORS.soul;
+      ctx.shadowBlur = 10;
+      ctx.globalAlpha = Math.min(1, s.ttl / 1.5);
+      ctx.fillStyle = CM.COLORS.soul;
+      ctx.beginPath(); ctx.arc(0, 0, 4.5 * pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+  };
+
+  CM.PetSystem = PS;
+})(typeof window !== 'undefined' ? window : this);
