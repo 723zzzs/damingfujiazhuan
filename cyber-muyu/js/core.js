@@ -24,6 +24,7 @@
     C.ctx = C.canvas.getContext('2d');
     C.resize();
     window.addEventListener('resize', function () { C.resize(); });
+    CM.Sprites.preload();            // 立绘异步加载，未就绪时自动用矢量兜底
 
     // 加载存档 + 离线惩罚
     const res = CM.SaveManager.load();
@@ -98,8 +99,8 @@
     C.canvas.height = vh * scale;
     C.canvas.style.width = (vw * scale) + 'px';
     C.canvas.style.height = (vh * scale) + 'px';
-    const ctx = C.ctx;
-    ctx.setTransform(scale, 0, 0, scale, (w - vw * scale) / 2, (h - vh * scale) / 2);
+    // 画布已由 CSS translate(-50%,-50%) 居中，坐标系内只需缩放，不可再加偏移（否则宽屏时内容被推偏半屏）
+    C.ctx.setTransform(scale, 0, 0, scale, 0, 0);
   };
 
   // ---------- 升级 ----------
@@ -394,10 +395,31 @@
   // ===== 木鱼 =====
   function drawMuyu(ctx) {
     const M = CM.MUYU;
-    const skin = G.woodStyle();
     const sink = T.anm * M.sink;
     const x = M.x, y = M.y + sink;
 
+    if (CM.Sprites.has('muyu')) {
+      // 立绘：敲击时轻微下沉 + 弹起微缩放
+      const squash = 1 + T.anm * 0.08;
+      ctx.save();
+      ctx.translate(x, y + sink * 0.6);
+      ctx.scale(1 / squash, squash * 0.94);
+      ctx.shadowColor = CM.COLORS.gold;
+      ctx.shadowBlur = 12 + T.anm * 22;
+      CM.Sprites.draw(ctx, 'muyu', 0, 0, { w: M.w * 1.45 });
+      ctx.shadowBlur = 0;
+      // 敲击金光环
+      if (T.anm > 0.4) {
+        ctx.strokeStyle = 'rgba(255,215,94,' + T.anm * 0.9 + ')';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(0, 0, M.w * 0.55 + (1 - T.anm) * 34, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+      return;
+    }
+
+    // 矢量兜底
+    const skin = G.woodStyle();
     ctx.save();
     ctx.translate(x, y);
     // 本体（圆鼓鱼身 + 鱼嘴开口 + 鱼尾）

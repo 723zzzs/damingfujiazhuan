@@ -100,67 +100,64 @@
   PS.draw = function (ctx, muyuLevel) {
     const cyber = Math.min(1, (muyuLevel - 1) / 8);   // 赛博改造度 0~1
 
-    // 猫
+    // 猫（立绘优先）
+    const Sp = CM.Sprites;
     for (let i = 0; i < CM.PETS.cats.length; i++) {
       const pc = CM.PETS.cats[i];
       if (!G.petAlive(pc.id)) continue;
-      const x = pc.x, y = 396, flip = i === 0 ? -1 : 1;
-      ctx.save(); ctx.translate(x, y);
-      // 身体
-      ctx.fillStyle = i === 0 ? '#f5e6c8' : '#cfd8e3';
-      ctx.beginPath(); ctx.ellipse(0, 6, 20, 14, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(flip * 9, -6, 11, 0, Math.PI * 2); ctx.fill(); // 头
-      // 耳
-      ctx.beginPath(); ctx.moveTo(flip * 1, -16); ctx.lineTo(flip * 5, -26); ctx.lineTo(flip * 10, -14); ctx.fill();
-      // 赛博回路
-      if (cyber > 0.1) {
-        ctx.strokeStyle = CM.COLORS.cyan; ctx.globalAlpha = 0.35 + cyber * 0.65;
-        ctx.lineWidth = 1.4;
-        ctx.shadowColor = CM.COLORS.cyan; ctx.shadowBlur = 4 * cyber;
-        ctx.beginPath();
-        ctx.moveTo(-14, 2); ctx.lineTo(-4, 2); ctx.lineTo(0, -4);
-        ctx.moveTo(10, 2); ctx.lineTo(14, 2);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+      const x = pc.x, y = 396 + Math.sin(PS._time * 3 + i) * 2;
+      const key = i === 0 ? 'cat' : 'cat2';
+      if (Sp.has(key)) {
+        const bob = Math.sin(PS._time * 4 + i) * 1.5;
+        Sp.draw(ctx, key, x, y + bob, { w: 54, alpha: 1 });
+        // 赛博改造度光效
+        if (cyber > 0.25 && Sp.has(key)) {
+          Sp.draw(ctx, key, x, y + bob, { w: 54, v: 'saturate(1.4) brightness(1.12)', alpha: cyber * 0.8 });
+        }
+      } else {
+        // 兜底矢量造型
+        const flip = i === 0 ? -1 : 1;
+        ctx.save(); ctx.translate(x, y);
+        ctx.fillStyle = i === 0 ? '#f5e6c8' : '#cfd8e3';
+        ctx.beginPath(); ctx.ellipse(0, 6, 20, 14, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(flip * 9, -6, 11, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(flip * 1, -16); ctx.lineTo(flip * 5, -26); ctx.lineTo(flip * 10, -14); ctx.fill();
+        ctx.fillStyle = '#2e2410';
+        ctx.beginPath(); ctx.arc(flip * 12, -8, 2.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(flip * 6, -8, 2.4, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
       }
-      ctx.globalAlpha = 1;
-      // 眼
-      ctx.fillStyle = '#2e2410';
-      ctx.beginPath(); ctx.arc(flip * 12, -8, 2.4, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = cyber > 0.5 ? CM.COLORS.cyan : '#2e2410';
-      ctx.beginPath(); ctx.arc(flip * 6, -8, 2.4, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
     }
 
-    // 鹦鹉（绕飞）
+    // 鹦鹉（绕飞，立绘优先）
     for (let i = 0; i < CM.PETS.parrots.length; i++) {
       const pp = CM.PETS.parrots[i];
       if (!G.petAlive(pp.id) || muyuLevel < pp.level) continue;
       const ang = PS._time * 1.4 + i * Math.PI / 2;
       const x = CM.SHIELD.cx + Math.cos(ang) * 58;
       const y = CM.SHIELD.cy + Math.sin(ang * 0.8) * 40 - 10;
-      const flap = Math.sin(PS._time * 12 + i * 2) * 5;
-      ctx.save(); ctx.translate(x, y);
-      ctx.scale(Math.cos(ang) > 0 ? 1 : -1, 1);
-      // 身体
-      ctx.fillStyle = i % 2 ? '#ff6a9a' : '#ff2bd6';
-      ctx.beginPath(); ctx.ellipse(0, 2, 9, 12, 0, 0, Math.PI * 2); ctx.fill();
-      // 翅膀
-      ctx.fillStyle = '#8dffe0';
-      ctx.beginPath(); ctx.moveTo(-2, 0); ctx.quadraticCurveTo(-14, -8 - flap, -10, 4); ctx.quadraticCurveTo(-8, -2, -2, 0); ctx.fill();
-      // 头与喙
-      ctx.fillStyle = i % 2 ? '#ff2bd6' : '#ff6a9a';
-      ctx.beginPath(); ctx.arc(0, -11, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = CM.COLORS.gold;
-      ctx.beginPath(); ctx.moveTo(4, -13); ctx.lineTo(12, -11); ctx.lineTo(4, -9); ctx.fill();
-      // 眼 + 赛博纹
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(3, -13, 2.4, 0, Math.PI * 2); ctx.fill();
-      if (cyber > 0.15) {
-        ctx.strokeStyle = CM.COLORS.cyan; ctx.globalAlpha = 0.4 + cyber * 0.6; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(-8, 6); ctx.lineTo(-3, 2); ctx.moveTo(-6, 8); ctx.lineTo(-1, 4); ctx.stroke();
-        ctx.globalAlpha = 1;
+      if (Sp.has('parrot')) {
+        const flap = Math.sin(PS._time * 12 + i * 2) * 12;
+        Sp.draw(ctx, 'parrot', x, y + flap * 0.3, {
+          w: 34,
+          flip: Math.cos(ang) < 0,
+          v: 'saturate(1.25) brightness(1.05)'
+        });
+      } else {
+        const flap = Math.sin(PS._time * 12 + i * 2) * 5;
+        ctx.save(); ctx.translate(x, y);
+        ctx.scale(Math.cos(ang) > 0 ? 1 : -1, 1);
+        ctx.fillStyle = i % 2 ? '#ff6a9a' : '#ff2bd6';
+        ctx.beginPath(); ctx.ellipse(0, 2, 9, 12, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#8dffe0';
+        ctx.beginPath(); ctx.moveTo(-2, 0); ctx.quadraticCurveTo(-14, -8 - flap, -10, 4); ctx.quadraticCurveTo(-8, -2, -2, 0); ctx.fill();
+        ctx.fillStyle = i % 2 ? '#ff2bd6' : '#ff6a9a';
+        ctx.beginPath(); ctx.arc(0, -11, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = CM.COLORS.gold;
+        ctx.beginPath(); ctx.moveTo(4, -13); ctx.lineTo(12, -11); ctx.lineTo(4, -9); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(3, -13, 2.4, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
       }
-      ctx.restore();
     }
 
     // 友方鬼灵（发光小魂体）
