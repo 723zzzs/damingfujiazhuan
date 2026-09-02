@@ -26,13 +26,14 @@ html, body {
 }
 #ui > * { pointer-events: auto; }
 
-/* 顶栏快捷按钮 */
+/* 顶栏快捷按钮（JS 定位：功德条下方，不遮挡功德进度） */
 #topBtns {
-  position: fixed; top: calc(50% - min(50vh, 384px) + 8px);
-  left: 50%; transform: translateX(-50%);
+  position: fixed;
+  transform: translateX(-50%);
   width: min(100vw, 432px);
-  display: flex; justify-content: flex-end; gap: 6px;
+  display: flex; justify-content: flex-end; align-items: center; gap: 6px;
   padding: 0 16px;
+  z-index: 5;
 }
 #topBtns button {
   background: rgba(6, 10, 22, 0.72);

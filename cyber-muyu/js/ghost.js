@@ -26,10 +26,9 @@
   GM._spawn = function (def) {
     const cfg = def.petGhost != null ? CM.GHOST.petGhost[def.petGhost] : CM.GHOST.tiers[def.tier - 1];
     const scale = (GM.cycleScale || 1);
-    const a = Math.random() * Math.PI * 2;
-    const R = CM.SHIELD.r + 150 + Math.random() * 90;
-    const cx = CM.SHIELD.cx + Math.cos(a) * R;
-    const cy = CM.SHIELD.cy + Math.sin(a) * R;
+    // 统一从屏幕顶部外缘出现，向下侵袭，保证进入视野后才可被攻击
+    const cx = 50 + Math.random() * (CM.VIEW.W - 100);
+    const cy = -60 - Math.random() * 50;
     GM._list.push({
       id: ++GM._id,
       tier: def.tier || 0,
@@ -210,6 +209,13 @@
     return base;
   };
 
+  // 出战立绘：拥有对应等级鬼物皮肤时用皮肤立绘，否则原皮
+  GM._ghostSpriteKey = function (h) {
+    if (h.petGhost != null) return h.petGhost === 0 ? 'cat' : 'parrot';
+    if (CM.GameState.ghostSkinOwned(h.tier)) return 'ghost_skin';
+    return 'ghost';
+  };
+
   GM._drawSprite = function (ctx) {
     const Sp = CM.Sprites;
     for (let i = 0; i < GM._list.length; i++) {
@@ -219,7 +225,7 @@
       const x = h.x + wob;
       const deep = h.tier >= 7;              // 高层鬼物更突出
       const w = s * (1.7 + (deep ? 0.35 : 0));
-      const spr = Sp.variant(h.petGhost != null ? (h.petGhost === 0 ? 'cat' : 'parrot') : 'ghost', GM._ghostFilter(h));
+      const spr = Sp.variant(GM._ghostSpriteKey(h), GM._ghostFilter(h));
       if (!spr) continue;
       const ratio = spr.height / spr.width;
       const hh = w * ratio;

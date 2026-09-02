@@ -8,7 +8,8 @@
   // 资源表：key -> 路径
   const SRCS = [
     { key: 'muyu',   path: 'assets/sprites/spr_muyu.jpg' },
-    { key: 'ghost',  path: 'assets/sprites/spr_ghost.jpg' },
+    { key: 'ghost',  path: 'assets/sprites/spr_ghost_base.jpg' },   // 原皮幽灵（简洁）
+    { key: 'ghost_skin', path: 'assets/sprites/spr_ghost.jpg' },    // 孤魂皮肤（女仆提灯）
     { key: 'cat',    path: 'assets/sprites/spr_cat.jpg' },
     { key: 'cat2',   path: 'assets/sprites/spr_cat2.jpg' },
     { key: 'parrot', path: 'assets/sprites/spr_parrot.jpg' }

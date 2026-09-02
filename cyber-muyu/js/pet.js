@@ -40,11 +40,12 @@
     for (let i = 0; i < CM.PETS.cats.length; i++) {
       const pc = CM.PETS.cats[i];
       if (!G.petAlive(pc.id)) continue;
-      petAttack(pc.id, pc.x, 396,
+      const pos = CM.PET_SPOTS[pc.id === 'cat1' ? 'cat1' : 'cat2'];
+      petAttack(pc.id, pos.x, pos.y,
         CM.PETS.catDps * (0.85 + muyuLevel * 0.10),
         CM.PETS.catAtkCD, CM.PETS.catRange,
         function (t) {
-          CM.Fx.bolt(pc.x, 396, t.x, t.y - 24, 0.18, CM.COLORS.gold, 5);
+          CM.Fx.bolt(pos.x, pos.y, t.x, t.y - 24, 0.18, CM.COLORS.gold, 5);
         });
     }
 
@@ -55,8 +56,8 @@
       const on = G.petAlive(id) && muyuLevel >= pp.level;
       if (!on) continue;
       const ang = PS._time * 1.4 + i * Math.PI / 2;
-      const px = CM.SHIELD.cx + Math.cos(ang) * 58;
-      const py = CM.SHIELD.cy + Math.sin(ang * 0.8) * 40 - 10;
+      const px = CM.SHIELD.cx + Math.cos(ang) * 70;
+      const py = CM.SHIELD.cy + Math.sin(ang * 0.8) * 52 - 8;
       petAttack(id, px, py,
         CM.PETS.parrotDps * (0.9 + muyuLevel * 0.08),
         CM.PETS.parrotAtkCD, CM.PETS.parrotRange,
@@ -105,7 +106,8 @@
     for (let i = 0; i < CM.PETS.cats.length; i++) {
       const pc = CM.PETS.cats[i];
       if (!G.petAlive(pc.id)) continue;
-      const x = pc.x, y = 396 + Math.sin(PS._time * 3 + i) * 2;
+      const spot = CM.PET_SPOTS[pc.id === 'cat1' ? 'cat1' : 'cat2'];
+      const x = spot.x, y = spot.y + Math.sin(PS._time * 3 + i) * 2;
       const key = i === 0 ? 'cat' : 'cat2';
       if (Sp.has(key)) {
         const bob = Math.sin(PS._time * 4 + i) * 1.5;
@@ -134,8 +136,8 @@
       const pp = CM.PETS.parrots[i];
       if (!G.petAlive(pp.id) || muyuLevel < pp.level) continue;
       const ang = PS._time * 1.4 + i * Math.PI / 2;
-      const x = CM.SHIELD.cx + Math.cos(ang) * 58;
-      const y = CM.SHIELD.cy + Math.sin(ang * 0.8) * 40 - 10;
+      const x = CM.SHIELD.cx + Math.cos(ang) * 70;
+      const y = CM.SHIELD.cy + Math.sin(ang * 0.8) * 52 - 8;
       if (Sp.has('parrot')) {
         const flap = Math.sin(PS._time * 12 + i * 2) * 12;
         Sp.draw(ctx, 'parrot', x, y + flap * 0.3, {

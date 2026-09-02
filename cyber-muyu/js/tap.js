@@ -37,8 +37,8 @@
     Fx.meritText(CM.MUYU.x, CM.MUYU.y - 84, '+' + G.tapGain());
     CM.Audio.knock();
 
-    // 金光脉冲：以木鱼为中心向上覆盖，攻击范围内的鬼物
-    GM.pulseDamage(CM.MUYU.x, CM.MUYU.y - 40, CM.MUYU.pulseRadius, CM.MUYU.pulseDamage);
+    // 金光脉冲：以木鱼上方为起点，覆盖金光罩区域，攻击范围内的鬼物
+    GM.pulseDamage(CM.MUYU.x, CM.MUYU.pulseOriginY, CM.MUYU.pulseRadius, CM.MUYU.pulseDamage);
   };
 
   T.update = function (dt) {

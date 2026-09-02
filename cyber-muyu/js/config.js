@@ -27,21 +27,25 @@
 
   // --- 木鱼（底部中央主交互位）---
   CM.MUYU = {
-    x: 216, y: 648,           // 中心点
-    w: 150, h: 96,            // 本体宽高
-    tapRadius: 88,            // 判定半径（点击任意处亦可敲击）
-    sink: 7,                  // 敲击下沉像素
-    pulseRadius: 270,         // 单敲金光脉冲作用半径
+    x: 216, y: 686,            // 中心点
+    w: 150, h: 96,             // 本体宽高（立绘按比例缩放）
+    tapRadius: 88,             // 判定半径（点击任意处亦可敲击）
+    sink: 7,                   // 敲击下沉像素
+    pulseOriginY: 636,         // 金光脉冲起点（木鱼上方）
+    pulseRadius: 350,          // 单敲金光脉冲作用半径
     pulseDamage: 50
   };
 
-  // --- 金光罩 ---
+  // --- 金光罩（贴近木鱼，鬼物从上空攻击罩顶）---
   CM.SHIELD = {
-    cx: 216, cy: 336,         // 罩心（木鱼上方）
-    r: 152,                   // 罩半径
-    ghostAttackRadius: 165,   // 鬼物开始啃罩的距离（稍大于罩半径）
+    cx: 216, cy: 424,         // 罩心
+    r: 146,                   // 罩半径
+    ghostAttackRadius: 158,   // 鬼物开始啃罩的距离（稍大于罩半径）
     restoreOnPet: 0.25        // 宠物替死后恢复功德 = 容量 x 此比例
   };
+
+  // --- 宠物位置 ---
+  CM.PET_SPOTS = { cat1: { x: 156, y: 462 }, cat2: { x: 276, y: 462 }, player: { x: 216, y: 436 } };
 
   // --- 功德成长 ---
   CM.MERIT = {
@@ -82,10 +86,10 @@
 
   // --- 宠物 ---
   CM.PETS = {
-    cats: [{ id: 'cat1', x: 168, label: '阿金' }, { id: 'cat2', x: 264, label: '阿银' }],
-    catDps: 36, catRange: 280, catAtkCD: 0.8,
+    cats: [{ id: 'cat1', x: 156, label: '阿金' }, { id: 'cat2', x: 276, label: '阿银' }],
+    catDps: 36, catRange: 255, catAtkCD: 0.8,
     parrots: [ { id: 'p1', level: 2 }, { id: 'p2', level: 3 }, { id: 'p3', level: 4 }, { id: 'p4', level: 5 } ],
-    parrotDps: 20, parrotRange: 300, parrotAtkCD: 1.0,
+    parrotDps: 20, parrotRange: 290, parrotAtkCD: 1.0,
     soulDps: 8, soulRange: 320, soulAtkCD: 1.2
   };
 

@@ -101,6 +101,13 @@
     C.canvas.style.height = (vh * scale) + 'px';
     // 画布已由 CSS translate(-50%,-50%) 居中，坐标系内只需缩放，不可再加偏移（否则宽屏时内容被推偏半屏）
     C.ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    // 顶栏按钮跟随画布：放在功德条下方（画布逻辑 y≈96）
+    const btns = document.getElementById('topBtns');
+    if (btns) {
+      const r = C.canvas.getBoundingClientRect();
+      btns.style.left = (r.left + r.width / 2) + 'px';
+      btns.style.top = (r.top + r.height * (96 / vh)) + 'px';
+    }
   };
 
   // ---------- 升级 ----------
@@ -337,23 +344,16 @@
     }
   }
 
-  // ===== 祭台 =====
+  // ===== 祭台（仅脚下微光，无实体长条）=====
   function drawAltar(ctx) {
-    const W = CM.VIEW.W;
-    // 木鱼底座平台
-    ctx.fillStyle = '#121a2e';
-    roundRect(ctx, W / 2 - 95, 700, 190, 18, 8); ctx.fill();
-    ctx.strokeStyle = CM.COLORS.cyan;
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
-    ctx.strokeStyle = 'rgba(0,240,255,0.25)';
-    ctx.beginPath(); ctx.moveTo(W / 2 - 70, 724); ctx.lineTo(W / 2 + 70, 724); ctx.stroke();
-    // 罩下地面光斑
-    const g = ctx.createRadialGradient(CM.SHIELD.cx, 470, 10, CM.SHIELD.cx, 470, 120);
-    g.addColorStop(0, 'rgba(255,215,94,0.12)');
+    // 罩下地面光斑（模拟金光映照的地面，无实体条块）
+    ctx.save();
+    const g = ctx.createRadialGradient(CM.SHIELD.cx, CM.PET_SPOTS.cat1.y + 40, 10, CM.SHIELD.cx, CM.PET_SPOTS.cat1.y + 40, 130);
+    g.addColorStop(0, 'rgba(255,215,94,0.10)');
     g.addColorStop(1, 'rgba(255,215,94,0)');
     ctx.fillStyle = g;
-    ctx.beginPath(); ctx.ellipse(CM.SHIELD.cx, 470, 120, 30, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(CM.SHIELD.cx, CM.PET_SPOTS.cat1.y + 40, 130, 26, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 
   function roundRect(ctx, x, y, w, h, r) {
@@ -369,7 +369,7 @@
   // ===== 玩家（金光下） =====
   function drawPlayer(ctx) {
     const g = G.getData().gender || 'f';
-    const x = CM.SHIELD.cx, y = 408;
+    const x = CM.PET_SPOTS.player.x, y = CM.PET_SPOTS.player.y;
     ctx.save();
     ctx.translate(x, y);
     // 脚/腿
@@ -406,7 +406,7 @@
       ctx.scale(1 / squash, squash * 0.94);
       ctx.shadowColor = CM.COLORS.gold;
       ctx.shadowBlur = 12 + T.anm * 22;
-      CM.Sprites.draw(ctx, 'muyu', 0, 0, { w: M.w * 1.45 });
+      CM.Sprites.draw(ctx, 'muyu', 0, 0, { w: M.w * 0.96 });
       ctx.shadowBlur = 0;
       // 敲击金光环
       if (T.anm > 0.4) {

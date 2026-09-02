@@ -19,7 +19,7 @@
     ctx.fillStyle = 'rgba(6,10,22,0.72)';
     ctx.strokeStyle = 'rgba(0,240,255,0.55)';
     ctx.lineWidth = 1.2;
-    roundRect(ctx, 16, 16, W - 32, 26, 6);
+    roundRect(ctx, 16, 12, W - 32, 24, 6);
     ctx.fill(); ctx.stroke();
 
     // 分段容量刻度
@@ -27,7 +27,7 @@
     for (let i = 1; i < segs; i++) {
       const x = 16 + (W - 32) * (i / segs);
       ctx.strokeStyle = 'rgba(0,240,255,0.22)';
-      ctx.beginPath(); ctx.moveTo(x, 20); ctx.lineTo(x, 38); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, 16); ctx.lineTo(x, 32); ctx.stroke();
     }
     // 金条
     const bw = (W - 32) * Math.min(1, ratio);
@@ -39,38 +39,43 @@
       ctx.fillStyle = gold;
       ctx.shadowColor = CM.COLORS.gold;
       ctx.shadowBlur = 8;
-      roundRect(ctx, 17, 17, Math.max(3, bw - 2), 24, 4);
+      roundRect(ctx, 17, 13, Math.max(3, bw - 2), 22, 4);
       ctx.fill();
       ctx.shadowBlur = 0;
       // 电流描边
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(17, 17 + Math.sin(Date.now() / 90) * 2 + 8);
-      ctx.lineTo(18 + bw * 0.3, 17 + Math.sin(Date.now() / 70) * 3 + 10);
-      ctx.lineTo(18 + bw * 0.7, 17 + Math.sin(Date.now() / 100) * 2 + 7);
-      ctx.lineTo(18 + bw, 17 + Math.sin(Date.now() / 60) * 2 + 9);
+      ctx.beginPath(); ctx.moveTo(17, 13 + Math.sin(Date.now() / 90) * 2 + 8);
+      ctx.lineTo(18 + bw * 0.3, 13 + Math.sin(Date.now() / 70) * 3 + 10);
+      ctx.lineTo(18 + bw * 0.7, 13 + Math.sin(Date.now() / 100) * 2 + 7);
+      ctx.lineTo(18 + bw, 13 + Math.sin(Date.now() / 60) * 2 + 9);
       ctx.stroke();
     }
 
-    // 文本：等级 + 功德值
+    // 名称 + 数值（条内）
     ctx.textAlign = 'left';
     ctx.font = 'bold 13px "PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillStyle = '#ffe9b0';
+    ctx.shadowColor = CM.COLORS.gold;
+    ctx.shadowBlur = 6;
+    ctx.fillText('功德', 24, 30);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = CM.COLORS.gold;
+    ctx.fillText(Math.floor(d.merit) + ' / ' + G.meritCap(), W - 22, 30);
+    ctx.shadowBlur = 0;
+
+    // 木鱼等级（左）+ 当前鬼物等级（右）
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 12px "PingFang SC","Microsoft YaHei",sans-serif';
     ctx.fillStyle = '#eaffff';
     ctx.shadowColor = CM.COLORS.cyan;
     ctx.shadowBlur = 5;
-    ctx.fillText('木鱼 LV ' + d.muyuLevel, 22, 60);
+    ctx.fillText('木鱼 LV ' + d.muyuLevel, 22, 56);
     ctx.textAlign = 'right';
-    ctx.fillStyle = CM.COLORS.gold;
-    ctx.shadowColor = CM.COLORS.gold;
-    ctx.fillText(Math.floor(d.merit) + ' / ' + G.meritCap(), W - 22, 60);
-    ctx.shadowBlur = 0;
-
-    // 当前鬼物等级
-    ctx.textAlign = 'left';
     ctx.fillStyle = '#ffd0e8';
     ctx.shadowColor = CM.COLORS.pink;
-    ctx.font = 'bold 12px "PingFang SC","Microsoft YaHei",sans-serif';
-    ctx.fillText('鬼物 · ' + ghostBossName(), 22, 80);
+    ctx.shadowBlur = 5;
+    ctx.fillText('鬼物 · ' + ghostBossName(), W - 22, 56);
     ctx.shadowBlur = 0;
     ctx.restore();
   };
